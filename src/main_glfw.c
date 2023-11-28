@@ -1,22 +1,39 @@
+#include "cglm/types.h"
+#include "cglm/vec2.h"
+#include <assert.h>
 #include <stdio.h>
-#define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include "allocator.h"
 #include "shaders.h"
+
+struct Entity
+{
+    EntityId id;
+    SpriteId spriteId;
+
+    vec2 p;
+    vec2 dp;
+    vec2 ddp;
+
+    vec2 dim;
+};
 
 struct AppState
 {
-    f32 x;
-    f32 y;
-    f32 dx;
-    f32 dy;
+    Allocator *alloc;
 
-    bool key_left;
-    bool key_right;
-    bool key_up;
-    bool key_down;
+    struct Entity player;
+
+    bool keyLeft;
+    bool keyRight;
+    bool keyUp;
+    bool keyDown;
+
+    GLuint shaderProgram;
+    GLuint VAO;
 };
 
 // Vertex Shader
@@ -34,8 +51,21 @@ static const char *fragmentShaderSource = "#version 330 core\n"
                                           "}";
 
 // Function to set up OpenGL state and render the triangle
-void Render(GLuint shaderProgram, GLuint VAO)
+void Render(struct AppState *appState)
 {
+    const float dt = 0.1;
+
+    struct Entity *player = &appState->player;
+
+    player->ddp[0] = dt*((appState->keyLeft ? -1.0f : 0.0f) + (appState->keyRight ? 1.0f : 0.0f));
+    player->ddp[1] = dt*((appState->keyUp ? -1.0f : 0.0f) + (appState->keyDown ? 1.0f : 0.0f));
+    
+    glm_vec2_add(player->ddp, player->dp, player->dp);
+    glm_vec2_add(player->dp, player->p, player->p);
+
+    GLuint shaderProgram = appState->shaderProgram;
+    GLuint VAO = appState->VAO;
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Use the shader program
@@ -59,16 +89,16 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
         switch (key)
         {
         case GLFW_KEY_LEFT:
-            state->key_left = newKeyState;
+            state->keyLeft = newKeyState;
             break;
         case GLFW_KEY_RIGHT:
-            state->key_right = newKeyState;
+            state->keyRight = newKeyState;
             break;
         case GLFW_KEY_UP:
-            state->key_up = newKeyState;
+            state->keyUp = newKeyState;
             break;
         case GLFW_KEY_DOWN:
-            state->key_down = newKeyState;
+            state->keyDown = newKeyState;
             break;
         }
     }
@@ -76,18 +106,39 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 
 int main(void)
 {
-    struct AppState state = {0};
+    struct AppState *state = MemZeroAlloc(DefaultAllocator, sizeof(*state));
+    state->alloc = DefaultAllocator;
 
-    // Initialize GLFW
     if (!glfwInit())
     {
         return -1;
     }
 
-    // Create a GLFW window and set OpenGL context properties
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    GLFWwindow *window = glfwCreateWindow(800, 600, "Modern OpenGL Triangle", glfwGetPrimaryMonitor(), NULL);
+
+    // actually, try to get the second monitor if there is one, otherwise the primary
+    int monitorCount = -1;
+    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+    GLFWmonitor *monitor;
+
+    assert(monitorCount > 0);
+
+    if (monitorCount > 1)
+    {
+        monitor = monitors[1];
+    }
+    else
+    {
+        monitor = monitors[0];
+    }
+
+    int width = glfwGetVideoMode(monitor)->width;
+    int height = glfwGetVideoMode(monitor)->height;
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    GLFWwindow *window = glfwCreateWindow(width, height, "Fejnando 1", monitor, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -100,42 +151,45 @@ int main(void)
 
     gladLoadGL(glfwGetProcAddress);
 
-    // Vertex data for a colored triangle
-    float vertices[] = {-0.6f, -0.6f, 0.0f, 0.6f, -0.6f, 0.0f, 0.0f, 0.6f, 0.0f};
+    if (!gladLoadGL(glfwGetProcAddress))
+    {
+        glfwTerminate();
+        return -1;
+    }
 
-    // Vertex Array Object (VAO)
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
+    // Vertex data for a colored triangle
+    float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
+
+    glGenVertexArrays(1, &state->VAO);
 
     // Vertex Buffer Object (VBO)
     GLuint VBO;
     glGenBuffers(1, &VBO);
 
     // Bind the VAO
-    glBindVertexArray(VAO);
+    glBindVertexArray(state->VAO);
 
     // Bind the VBO and copy the vertex data to it
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Set the vertex attribute pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
 
-    GLuint shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
+    state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
 
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
-        Render(shaderProgram, VAO);
+        Render(state);
 
         glfwSwapBuffers(window);
     }
 
-    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &state->VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+    glDeleteProgram(state->shaderProgram);
 
     glfwTerminate();
 

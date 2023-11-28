@@ -24,4 +24,11 @@ typedef ssize_t ssize;
 typedef float f32;
 typedef double f64;
 
+typedef u32 SpriteId[1];
+typedef u32 EntityId[1];
+
+#define PVEC2_FMT "{%4.2f, %4.2f}"
+#define PVEC2_SPREAD(v) (v)[0],(v)[1]
+#define PVEC2(v) printf(PVEC2_FMT"\n", PVEC2_SPREAD(v))
+
 #endif // COMMON_H

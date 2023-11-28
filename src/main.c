@@ -1,13 +1,23 @@
+#include <stdio.h>
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include <stdio.h>
 
-#include "common.h"
+#include "shaders.h"
 
-// Unity build
-#include "shaders.c"
+struct AppState
+{
+    f32 x;
+    f32 y;
+    f32 dx;
+    f32 dy;
+
+    bool key_left;
+    bool key_right;
+    bool key_up;
+    bool key_down;
+};
 
 // Vertex Shader
 static const char *vertexShaderSource = "#version 330 core\n"
@@ -24,7 +34,7 @@ static const char *fragmentShaderSource = "#version 330 core\n"
                                           "}";
 
 // Function to set up OpenGL state and render the triangle
-void render(GLuint shaderProgram, GLuint VAO)
+void Render(GLuint shaderProgram, GLuint VAO)
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -36,8 +46,38 @@ void render(GLuint shaderProgram, GLuint VAO)
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    UNUSED(mods);
+    UNUSED(scancode);
+
+    struct AppState *state = glfwGetWindowUserPointer(window);
+
+    if (action == GLFW_PRESS || action == GLFW_RELEASE)
+    {
+        bool newKeyState = action == GLFW_PRESS;
+        switch (key)
+        {
+        case GLFW_KEY_LEFT:
+            state->key_left = newKeyState;
+            break;
+        case GLFW_KEY_RIGHT:
+            state->key_right = newKeyState;
+            break;
+        case GLFW_KEY_UP:
+            state->key_up = newKeyState;
+            break;
+        case GLFW_KEY_DOWN:
+            state->key_down = newKeyState;
+            break;
+        }
+    }
+}
+
 int main(void)
 {
+    struct AppState state = {0};
+
     // Initialize GLFW
     if (!glfwInit())
     {
@@ -54,6 +94,9 @@ int main(void)
         return -1;
     }
     glfwMakeContextCurrent(window);
+
+    glfwSetWindowUserPointer(window, &state);
+    glfwSetKeyCallback(window, KeyCallback);
 
     gladLoadGL(glfwGetProcAddress);
 
@@ -83,11 +126,11 @@ int main(void)
 
     while (!glfwWindowShouldClose(window))
     {
-        render(shaderProgram, VAO);
+        glfwPollEvents();
+
+        Render(shaderProgram, VAO);
 
         glfwSwapBuffers(window);
-
-        glfwPollEvents();
     }
 
     glDeleteVertexArrays(1, &VAO);

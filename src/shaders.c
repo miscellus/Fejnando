@@ -1,6 +1,7 @@
 #include "shaders.h"
+#include <glad/gl.h>
 
-func u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShaderSource)
+u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShaderSource)
 {
     // Create and compile the vertex shader
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -43,7 +44,7 @@ func u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShad
         glGetProgramInfoLog(shaderProgram, sizeof(infoLog), NULL, infoLog);
         fprintf(stderr, "Shader program linking error: %s\n", infoLog);
     }
-    
+
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 

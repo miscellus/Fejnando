@@ -1,13 +1,13 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdio.h>
 
-#define func static
-#define ARRAY_LEN(arr) (sizeof(arr)/sizeof((arr)[0]))
+#define UNUSED(x) ((void)(x))
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 typedef uint8_t u8;
 typedef int8_t s8;
@@ -21,4 +21,7 @@ typedef int64_t s64;
 typedef size_t usize;
 typedef ssize_t ssize;
 
-#endif //COMMON_H
+typedef float f32;
+typedef double f64;
+
+#endif // COMMON_H

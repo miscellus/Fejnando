@@ -8,6 +8,7 @@
 
 #define UNUSED(x) ((void)(x))
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define OFFSET_OF(struc, member) ((size_t)((char *)&((struc *)0)->member - (char *)0))
 
 typedef uint8_t u8;
 typedef int8_t s8;
@@ -23,9 +24,6 @@ typedef ssize_t ssize;
 
 typedef float f32;
 typedef double f64;
-
-typedef u32 SpriteId[1];
-typedef u32 EntityId[1];
 
 #define PVEC2_FMT "{%4.2f, %4.2f}"
 #define PVEC2_SPREAD(v) (v)[0],(v)[1]

@@ -1,7 +1,7 @@
 #ifndef SPRITES_H
 #define SPRITES_H
 
-#include "common.h"
+#include "../common.h"
 
 typedef u32 SpriteId[1];
 

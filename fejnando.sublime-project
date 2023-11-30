@@ -1,0 +1,88 @@
+{
+	"build_systems":
+	[
+		{
+			"name": "Quick",
+			"working_dir": "$folder/build",
+			"shell_cmd": "make -j4",
+			"variants": [
+				{
+					"name": "run",
+					"shell_cmd": "make -j4 && ./Fejnando"
+				},
+				{
+					"name": "configure",
+					"shell_cmd": "cmake .."
+				},
+				{
+					"target": "terminus_open",
+					"cancel": "terminus_cancel_build",
+					"title": " G D B ",
+					"focus": true,
+					"name": "Debug in GDB",
+					"shell_cmd": "gdb -tui -args ./Fejnando"
+				}
+			]
+		},
+		{
+			"config": "Default",
+			"env":
+			{
+			},
+			"generator": "Unix Makefiles",
+			"name": "Default",
+			"target": "cmake_build",
+			"variants":
+			[
+				{
+					"build_target": "Fejnando",
+					"name": "Fejnando"
+				},
+				{
+					"artifact": "Fejnando",
+					"build_target": "Fejnando",
+					"name": "Run: Fejnando",
+					"target": "cmake_run"
+				},
+				{
+					"artifact": "Fejnando",
+					"build_target": "Fejnando",
+					"debug": true,
+					"name": "Run under GDB: Fejnando",
+					"target": "cmake_run"
+				},
+				{
+					"build_target": "cglm",
+					"name": "cglm"
+				},
+				{
+					"build_target": "docs",
+					"name": "docs"
+				},
+				{
+					"build_target": "glfw",
+					"name": "glfw"
+				},
+				{
+					"build_target": "uninstall",
+					"name": "uninstall"
+				},
+				{
+					"build_target": "update_mappings",
+					"name": "update_mappings"
+				},
+				{
+					"name": "ctest",
+					"target": "ctest_run"
+				}
+			],
+			"working_dir": "$folder/build"
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	]
+}

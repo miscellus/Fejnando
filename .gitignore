@@ -68,3 +68,4 @@ dkms.conf
 
 compile_commands.json
 .cache/
+*.sublime-workspace

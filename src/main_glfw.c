@@ -1,10 +1,12 @@
-#include "cglm/types.h"
-#include "cglm/vec2.h"
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <glad/gl.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+#define CGLM_OMIT_NS_FROM_STRUCT_API
+#include <cglm/struct.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -19,11 +21,11 @@ struct Entity
     u32 id;
     SpriteId spriteId;
 
-    vec2 p;
-    vec2 dp;
-    vec2 ddp;
+    vec2s position;
+    vec2s velocity;
+    vec2s acceleration;
 
-    vec2 dim;
+    vec2s dim;
 };
 
 struct AppState
@@ -39,6 +41,10 @@ struct AppState
 
     GLuint shaderProgram;
     GLuint spriteVao;
+    GLuint multiplyColorLocation;
+    GLuint transformLocation;
+
+    u32 viewMode;
 };
 
 // Vertex Shader
@@ -47,19 +53,25 @@ static const char *vertexShaderSource =
 "layout (location = 0) in vec3 aPos;\n"
 "layout (location = 1) in vec3 aColor;\n"
 "layout (location = 2) in vec2 aUV;\n"
-"out vec3 vColor;\n"
+"out vec4 vColor;\n"
+"out vec2 vUV;\n"
+"uniform mat4 transform;\n"
 "void main() {\n"
-"    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-"    vColor = aColor;\n"
+"    gl_Position = transform * vec4(aPos, 1.0);\n"
+"    vColor = vec4(aColor, 1.0);\n"
+"    vUV = aUV;\n"
 "}";
 
 // Fragment Shader
 static const char *fragmentShaderSource =
 "#version 330 core\n"
-"in vec3 vColor;\n"
+"in vec4 vColor;\n"
+"in vec2 vUV;\n"
 "out vec4 FragColor;\n"
+"uniform vec4 multiplyColor;\n"
+"uniform sampler2D textureMain;"
 "void main() {\n"
-"    FragColor = vec4(vColor.r, vColor.g, vColor.b, 1.0); //vec4(1.0, 0.5, 0.2, 1.0);\n"
+"    FragColor = texture(textureMain, vUV) * vColor * multiplyColor;\n"
 "}";
 
 // Function to set up OpenGL state and render the triangle
@@ -69,15 +81,30 @@ void Render(struct AppState *appState)
 
     struct Entity *player = &appState->player;
 
-    player->ddp[0] = dt*((appState->keyLeft ? -1.0f : 0.0f) + (appState->keyRight ? 1.0f : 0.0f));
-    player->ddp[1] = dt*((appState->keyUp ? -1.0f : 0.0f) + (appState->keyDown ? 1.0f : 0.0f));
+    player->acceleration.x = dt*((appState->keyLeft ? -1.0f : 0.0f) + (appState->keyRight ? 1.0f : 0.0f));
+    player->acceleration.y = dt*((appState->keyUp ? -1.0f : 0.0f) + (appState->keyDown ? 1.0f : 0.0f));
 
-    glm_vec2_add(player->ddp, player->dp, player->dp);
-    glm_vec2_add(player->dp, player->p, player->p);
+    player->velocity = vec2_add(player->acceleration, player->velocity);
+    player->position = vec2_add(player->velocity, player->position);
 
+    glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+
+    // Render
+    //
     glUseProgram(appState->shaderProgram);
+
+    float t = sinf(glfwGetTime()*1)*0.5f + 0.5f;
+    float y = sinf(glfwGetTime()*0.7853981633974483)*0.5f + 0.5f;
+    glUniform4f(appState->multiplyColorLocation, t, y, t*y, 1.0);
+
+    mat4s transform;
+    glm_mat4_identity(transform.raw);
+    glm_rotate_z(transform.raw, glfwGetTime(), transform.raw);
+    transform = glms_translate(transform, (vec3s){.raw = {player->position.x, player->position.y, 1.0f}});
+
+    glUniformMatrix4fv(appState->transformLocation, 1, false, (float *)&transform);
 
     glBindVertexArray(appState->spriteVao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -107,6 +134,12 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
         case GLFW_KEY_DOWN:
             state->keyDown = newKeyState;
             break;
+        case GLFW_KEY_F3:
+            if (newKeyState)
+            {
+                ++state->viewMode;
+                glPolygonMode(GL_FRONT_AND_BACK, (state->viewMode & 1) ? GL_FILL : GL_LINE);
+            }
         }
     }
 }
@@ -181,22 +214,47 @@ int main(void)
         return -1;
     }
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
+    state->multiplyColorLocation = glGetUniformLocation(state->shaderProgram, "multiplyColor");
+    state->transformLocation = glGetUniformLocation(state->shaderProgram, "transform");
 
     const char *crabFilePath = "../resources/crab.png";
     FILE *imageFile = fopen(crabFilePath, "rb");
     if (!imageFile)
     {
-        fprintf(stderr, "Could not open file %s\n", crabFilePath);
+        fprintf(stderr, "Could not open file %s.\n", crabFilePath);
         glfwTerminate();
         return -1;
     }
 
+    // load crab texture
+    u32 crabTexture;
+    glGenTextures(1, &crabTexture);
+    glBindTexture(GL_TEXTURE_2D, crabTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     s32 crabWidth;
     s32 crabHeight;
     s32 channels;
     s32 desiredChannels = 4;
+    stbi_set_flip_vertically_on_load(true);
     u8* crabData = stbi_load_from_file(imageFile, &crabWidth, &crabHeight, &channels, desiredChannels);
+    if (crabData)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, crabWidth, crabHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, crabData);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(crabData);
+    }
+    else
+    {
+        fprintf(stderr, "Could not load image %s.\n", crabFilePath);
+        glfwTerminate();
+        return -1;
+    }
     fclose(imageFile);
 
     struct SpriteVertex
@@ -235,6 +293,10 @@ int main(void)
     GLint colorAttribLocation = glGetAttribLocation(state->shaderProgram, "aColor");
     glVertexAttribPointer(colorAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, color));
     glEnableVertexAttribArray(colorAttribLocation);
+
+    GLint uvAttribLocation = glGetAttribLocation(state->shaderProgram, "aUV");
+    glVertexAttribPointer(uvAttribLocation, 2, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, uv));
+    glEnableVertexAttribArray(uvAttribLocation);
 
     while (!glfwWindowShouldClose(window))
     {

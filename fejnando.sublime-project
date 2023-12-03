@@ -5,6 +5,7 @@
 			"name": "Quick",
 			"working_dir": "$folder/build",
 			"shell_cmd": "make -j4",
+			"file_regex": "^((?!\\s)[^:]+):([0-9]+):([0-9]+)?:?\\s*((fatal error|error|warning|note):\\s*.*)$",
 			"variants": [
 				{
 					"name": "run",

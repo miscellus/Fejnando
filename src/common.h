@@ -8,7 +8,7 @@
 
 #define UNUSED(x) ((void)(x))
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define OFFSET_OF(struc, member) ((size_t)((char *)&((struc *)0)->member - (char *)0))
+#define OFFSET_OF(struc, member) ((size_t)((char *)&((struc *)0)->member))
 
 typedef uint8_t u8;
 typedef int8_t s8;

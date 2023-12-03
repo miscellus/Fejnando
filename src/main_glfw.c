@@ -61,7 +61,7 @@ static const char *vertexShaderSource =
 "uniform mat4 projection;\n"
 "void main() {\n"
 "    gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-"    vColor = vec4(aColor, 1.0);\n"
+"    vColor = vec4(1.0);\n"
 "    vUV = aUV;\n"
 "}";
 
@@ -91,7 +91,7 @@ void Render(struct AppState *appState)
     glm_vec2_add(player->velocity, player->position, player->position);
 
     glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
     // Render
@@ -109,7 +109,7 @@ void Render(struct AppState *appState)
 
     mat4 view;
     glm_mat4_identity(view);
-    glm_translate(view, (vec3){0.0f, 0.0f, -3.0f});
+    glm_translate(view, (vec3){0.0f, 0.0f, -10.0f});
 
     mat4 projection;
     glm_mat4_identity(projection);
@@ -125,7 +125,7 @@ void Render(struct AppState *appState)
     glUniformMatrix4fv(appState->matProjectionLocation, 1, false, projection[0]);
 
     glBindVertexArray(appState->spriteVao);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -233,6 +233,7 @@ int main(void)
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glEnable(GL_DEPTH_TEST);
 
     state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
     state->multiplyColorLocation = glGetUniformLocation(state->shaderProgram, "multiplyColor");
@@ -285,12 +286,53 @@ int main(void)
     };
 
     struct SpriteVertex vertices[] = {
-        { .pos = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}, .uv = {0.0f, 0.0f}},
-        { .pos = {-0.5f, 0.5f, 0.0f},  .color = {0.5f, 0.5f, 0.0f}, .uv = {0.0f, 1.0f}},
-        { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.2f, 0.8f, 0.0f}, .uv = {1.0f, 1.0f}},
-        { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 1.0f}},
-        { .pos = {0.5f, -0.5f, 0.0f},  .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 0.0f}},
-        { .pos = {-0.5f, -0.5f, 0.0f}, .color = {0.0f, 0.5f, 1.0f}, .uv = {0.0f, 0.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+
+        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+
+        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+
+        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        // { .pos = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}, .uv = {0.0f, 0.0f}},
+        // { .pos = {-0.5f, 0.5f, 0.0f},  .color = {0.5f, 0.5f, 0.0f}, .uv = {0.0f, 1.0f}},
+        // { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.2f, 0.8f, 0.0f}, .uv = {1.0f, 1.0f}},
+        // { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 1.0f}},
+        // { .pos = {0.5f, -0.5f, 0.0f},  .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 0.0f}},
+        // { .pos = {-0.5f, -0.5f, 0.0f}, .color = {0.0f, 0.5f, 1.0f}, .uv = {0.0f, 0.0f}},
     };
 
     glGenVertexArrays(1, &state->spriteVao);

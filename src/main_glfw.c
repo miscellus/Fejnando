@@ -5,8 +5,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#define CGLM_OMIT_NS_FROM_STRUCT_API
-#include <cglm/struct.h>
+#include <cglm/call.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -21,11 +20,11 @@ struct Entity
     u32 id;
     SpriteId spriteId;
 
-    vec2s position;
-    vec2s velocity;
-    vec2s acceleration;
+    vec2 position;
+    vec2 velocity;
+    vec2 acceleration;
 
-    vec2s dim;
+    vec2 dim;
 };
 
 struct AppState
@@ -42,7 +41,9 @@ struct AppState
     GLuint shaderProgram;
     GLuint spriteVao;
     GLuint multiplyColorLocation;
-    GLuint transformLocation;
+    GLuint matModelLocation;
+    GLuint matViewLocation;
+    GLuint matProjectionLocation;
 
     u32 viewMode;
 };
@@ -55,9 +56,11 @@ static const char *vertexShaderSource =
 "layout (location = 2) in vec2 aUV;\n"
 "out vec4 vColor;\n"
 "out vec2 vUV;\n"
-"uniform mat4 transform;\n"
+"uniform mat4 model;\n"
+"uniform mat4 view;\n"
+"uniform mat4 projection;\n"
 "void main() {\n"
-"    gl_Position = transform * vec4(aPos, 1.0);\n"
+"    gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
 "    vColor = vec4(aColor, 1.0);\n"
 "    vUV = aUV;\n"
 "}";
@@ -81,11 +84,11 @@ void Render(struct AppState *appState)
 
     struct Entity *player = &appState->player;
 
-    player->acceleration.x = dt*((appState->keyLeft ? -1.0f : 0.0f) + (appState->keyRight ? 1.0f : 0.0f));
-    player->acceleration.y = dt*((appState->keyUp ? -1.0f : 0.0f) + (appState->keyDown ? 1.0f : 0.0f));
+    player->acceleration[0] = dt*((appState->keyLeft ? -1.0f : 0.0f) + (appState->keyRight ? 1.0f : 0.0f));
+    player->acceleration[1] = dt*((appState->keyUp ? -1.0f : 0.0f) + (appState->keyDown ? 1.0f : 0.0f));
 
-    player->velocity = vec2_add(player->acceleration, player->velocity);
-    player->position = vec2_add(player->velocity, player->position);
+    glm_vec2_add(player->acceleration, player->velocity, player->velocity);
+    glm_vec2_add(player->velocity, player->position, player->position);
 
     glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -99,12 +102,27 @@ void Render(struct AppState *appState)
     float y = sinf(glfwGetTime()*0.7853981633974483)*0.5f + 0.5f;
     glUniform4f(appState->multiplyColorLocation, t, y, t*y, 1.0);
 
-    mat4s transform;
-    glm_mat4_identity(transform.raw);
-    glm_rotate_z(transform.raw, glfwGetTime(), transform.raw);
-    transform = glms_translate(transform, (vec3s){.raw = {player->position.x, player->position.y, 1.0f}});
+    mat4 model;
+    glm_mat4_identity(model);
+    glm_rotate(model, glm_rad(-55.0f), (vec3){1.0f, 0.0f, 0.0f});
+    glm_rotate(model, glfwGetTime(), (vec3){0.0f, 0.0f, 1.0f});
 
-    glUniformMatrix4fv(appState->transformLocation, 1, false, (float *)&transform);
+    mat4 view;
+    glm_mat4_identity(view);
+    glm_translate(view, (vec3){0.0f, 0.0f, -3.0f});
+
+    mat4 projection;
+    glm_mat4_identity(projection);
+    glm_perspective(glm_rad(45), 4.0f/3.0f, 0.1f, 100.0f, projection);
+
+    // mat4s transform;
+    // glm_mat4_identity(transform.raw);
+    // transform = glms_translate(transform, (vec3s){.raw = {0.5f, player->position.y, 1.0f}});
+    // glm_rotate_z(transform.raw, glfwGetTime(), transform.raw);
+
+    glUniformMatrix4fv(appState->matModelLocation, 1, false, model[0]);
+    glUniformMatrix4fv(appState->matViewLocation, 1, false, view[0]);
+    glUniformMatrix4fv(appState->matProjectionLocation, 1, false, projection[0]);
 
     glBindVertexArray(appState->spriteVao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -218,7 +236,9 @@ int main(void)
 
     state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
     state->multiplyColorLocation = glGetUniformLocation(state->shaderProgram, "multiplyColor");
-    state->transformLocation = glGetUniformLocation(state->shaderProgram, "transform");
+    state->matModelLocation = glGetUniformLocation(state->shaderProgram, "model");
+    state->matViewLocation = glGetUniformLocation(state->shaderProgram, "view");
+    state->matProjectionLocation = glGetUniformLocation(state->shaderProgram, "projection");
 
     const char *crabFilePath = "../resources/crab.png";
     FILE *imageFile = fopen(crabFilePath, "rb");

@@ -2,10 +2,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <glad/gl.h>
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include <cglm/call.h>
+#include <cglm/cglm.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -102,30 +103,42 @@ void Render(struct AppState *appState)
     float y = sinf(glfwGetTime()*0.7853981633974483)*0.5f + 0.5f;
     glUniform4f(appState->multiplyColorLocation, t, y, t*y, 1.0);
 
-    mat4 model;
-    glm_mat4_identity(model);
-    glm_rotate(model, glm_rad(-55.0f), (vec3){1.0f, 0.0f, 0.0f});
-    glm_rotate(model, glfwGetTime(), (vec3){0.0f, 0.0f, 1.0f});
+    struct {
+        vec3 pos;
+        float rotateFactor;
+    } cubes[] = {
+        {{ 1.5f,  1.0, 0.0}, 1.0f},
+        {{-1.5f, -1.0, 0.0}, -2.0f},
+    };
 
-    mat4 view;
-    glm_mat4_identity(view);
-    glm_translate(view, (vec3){0.0f, 0.0f, -10.0f});
+    for (u32 i = 0; i < ARRAY_LEN(cubes); ++i)
+    {
+        mat4 model;
+        glm_mat4_identity(model);
+        glm_translated(model, cubes[i].pos);
+        glm_rotate(model, glm_rad(-55.0f), (vec3){1.0f, 0.0f, 0.0f});
+        glm_rotate(model, cubes[i].rotateFactor * glfwGetTime(), (vec3){0.0f, 0.0f, 1.0f});
 
-    mat4 projection;
-    glm_mat4_identity(projection);
-    glm_perspective(glm_rad(45), 4.0f/3.0f, 0.1f, 100.0f, projection);
+        mat4 view;
+        glm_mat4_identity(view);
+        glm_translate(view, (vec3){0.0f, 0.0f, -10.0f});
 
-    // mat4s transform;
-    // glm_mat4_identity(transform.raw);
-    // transform = glms_translate(transform, (vec3s){.raw = {0.5f, player->position.y, 1.0f}});
-    // glm_rotate_z(transform.raw, glfwGetTime(), transform.raw);
+        mat4 projection;
+        glm_mat4_identity(projection);
+        glm_perspective(glm_rad(55), 16.0f/9.0f, 0.1f, 100.0f, projection);
 
-    glUniformMatrix4fv(appState->matModelLocation, 1, false, model[0]);
-    glUniformMatrix4fv(appState->matViewLocation, 1, false, view[0]);
-    glUniformMatrix4fv(appState->matProjectionLocation, 1, false, projection[0]);
+        // mat4s transform;
+        // glm_mat4_identity(transform.raw);
+        // transform = glms_translate(transform, (vec3s){.raw = {0.5f, player->position.y, 1.0f}});
+        // glm_rotate_z(transform.raw, glfwGetTime(), transform.raw);
 
-    glBindVertexArray(appState->spriteVao);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+        glUniformMatrix4fv(appState->matModelLocation, 1, false, model[0]);
+        glUniformMatrix4fv(appState->matViewLocation, 1, false, view[0]);
+        glUniformMatrix4fv(appState->matProjectionLocation, 1, false, projection[0]);
+
+        glBindVertexArray(appState->spriteVao);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 }
 
 void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)

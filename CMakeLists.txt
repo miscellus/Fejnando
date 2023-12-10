@@ -17,6 +17,7 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     deps/
+    deps/glad
     ${GLFW_INCLUDE_DIRS}
 )
 
@@ -25,11 +26,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     cglm
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -O0
-    -ggdb
-)
-
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        /Od
+        /Wall
+    )
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -O0
+        -ggdb
+    )
+endif()

@@ -175,13 +175,13 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
     }
 }
 
-void OnFramebufferSizeChange(GLFWwindow* window, int width, int height)
+static void OnFramebufferSizeChange(GLFWwindow* window, int width, int height)
 {
     UNUSED(window);
     glViewport(0, 0, width, height);
 }
 
-void HandleInput(GLFWwindow *window)
+static void HandleInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
@@ -225,7 +225,7 @@ int main(void)
 
     int minDim = width > height ? height : width;
     float aspect = 4.0f/3.0f;
-    GLFWwindow *window = glfwCreateWindow(minDim*.8f, minDim*.8f / aspect, "Fejnando", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(width, height, "Fejnando", monitor, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -340,12 +340,6 @@ int main(void)
         {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
         {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
         {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
-        // { .pos = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}, .uv = {0.0f, 0.0f}},
-        // { .pos = {-0.5f, 0.5f, 0.0f},  .color = {0.5f, 0.5f, 0.0f}, .uv = {0.0f, 1.0f}},
-        // { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.2f, 0.8f, 0.0f}, .uv = {1.0f, 1.0f}},
-        // { .pos = {0.5f, 0.5f, 0.0f},   .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 1.0f}},
-        // { .pos = {0.5f, -0.5f, 0.0f},  .color = {0.0f, 0.5f, 1.0f}, .uv = {1.0f, 0.0f}},
-        // { .pos = {-0.5f, -0.5f, 0.0f}, .color = {0.0f, 0.5f, 1.0f}, .uv = {0.0f, 0.0f}},
     };
 
     glGenVertexArrays(1, &state->spriteVao);

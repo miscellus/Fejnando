@@ -2,10 +2,11 @@
 	"build_systems":
 	[
 		{
-			"name": "Quick",
+			"name": "Build on Linux",
 			"working_dir": "$folder/build",
 			"shell_cmd": "make -j4",
 			"file_regex": "^((?!\\s)[^:]+):([0-9]+):([0-9]+)?:?\\s*((fatal error|error|warning|note):\\s*.*)$",
+			
 			"variants": [
 				{
 					"name": "run",
@@ -22,62 +23,33 @@
 					"focus": true,
 					"name": "Debug in GDB",
 					"shell_cmd": "gdb -tui -args ./Fejnando"
+				},
+				{
+					"name": "MSBuild",
+					"shell_cmd": "msbuild /nologo /verbosity:quiet Fejnando.sln && Debug\\Fejnando",
+					"file_regex": "^([^(]+)\\(\\s*(\\d+),?(\\d+)\\):?\\s*(.*)$",
 				}
 			]
 		},
 		{
-			"config": "Default",
-			"env":
-			{
-			},
-			"generator": "Unix Makefiles",
-			"name": "Default",
-			"target": "cmake_build",
-			"variants":
-			[
+			"name": "Build on Windows",
+			"working_dir": "$folder/build",
+			"shell_cmd": "msbuild /nologo /verbosity:quiet Fejnando.sln",
+			"file_regex": "^([^(]+)\\(\\s*(\\d+),?(\\d+)\\):?\\s*(.*)$",
+			"variants": [
 				{
-					"build_target": "Fejnando",
-					"name": "Fejnando"
+					"name": "Build & Run",
+					"shell_cmd": "msbuild /nologo /verbosity:quiet Fejnando.sln && Debug\\Fejnando"
 				},
 				{
-					"artifact": "Fejnando",
-					"build_target": "Fejnando",
-					"name": "Run: Fejnando",
-					"target": "cmake_run"
+					"name": "Configure",
+					"shell_cmd": "cmake .. -G \"Visual Studio 17 2022\""
 				},
 				{
-					"artifact": "Fejnando",
-					"build_target": "Fejnando",
-					"debug": true,
-					"name": "Run under GDB: Fejnando",
-					"target": "cmake_run"
-				},
-				{
-					"build_target": "cglm",
-					"name": "cglm"
-				},
-				{
-					"build_target": "docs",
-					"name": "docs"
-				},
-				{
-					"build_target": "glfw",
-					"name": "glfw"
-				},
-				{
-					"build_target": "uninstall",
-					"name": "uninstall"
-				},
-				{
-					"build_target": "update_mappings",
-					"name": "update_mappings"
-				},
-				{
-					"name": "ctest",
-					"target": "ctest_run"
+					"name": "Debug",
+					"shell_cmd": "devenv Debug\\Fejnando.exe"
 				}
-			],
-			"working_dir": "$folder/build"
+			]
 		}
 	],
 	"folders":

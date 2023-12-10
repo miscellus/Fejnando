@@ -11,8 +11,11 @@ add_executable(${PROJECT_NAME}
     src/main_glfw.c
     src/shaders.c
     src/allocator.c
-    src/game/sprites.c
     deps/glad/gl.c
+)
+
+add_library(gamelib SHARED
+    src/game.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

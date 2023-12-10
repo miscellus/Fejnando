@@ -14,13 +14,10 @@
 #include "common.h"
 #include "allocator.h"
 #include "shaders.h"
-#include "game/sprites.h"
 
 struct Entity
 {
     u32 id;
-    SpriteId spriteId;
-
     vec2 position;
     vec2 velocity;
     vec2 acceleration;
@@ -45,16 +42,25 @@ struct AppState
     GLuint matModelLocation;
     GLuint matViewLocation;
     GLuint matProjectionLocation;
+    GLuint tileCoordLocation;
 
     u32 viewMode;
+};
+
+static vec3 quadVertices[] = {
+    { -1.0f, -1.0f,  0.0f },
+    {  1.0f, -1.0f,  0.0f },
+    {  1.0f,  1.0f,  0.0f },
+    {  1.0f,  1.0f,  0.0f },
+    { -1.0f,  1.0f,  0.0f },
+    { -1.0f, -1.0f,  0.0f },
 };
 
 // Vertex Shader
 static const char *vertexShaderSource =
 "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
-"layout (location = 1) in vec3 aColor;\n"
-"layout (location = 2) in vec2 aUV;\n"
+"layout (location = 1) in vec2 aUV;\n"
 "out vec4 vColor;\n"
 "out vec2 vUV;\n"
 "uniform mat4 model;\n"
@@ -73,15 +79,16 @@ static const char *fragmentShaderSource =
 "in vec2 vUV;\n"
 "out vec4 FragColor;\n"
 "uniform vec4 multiplyColor;\n"
-"uniform sampler2D textureMain;"
+"uniform sampler2D textureMain;\n"
+"uniform vec2 tile;\n"
 "void main() {\n"
-"    FragColor = texture(textureMain, vUV) * vColor * multiplyColor;\n"
+"    FragColor = texture(textureMain, (vUV + tile) * 0.125) * vColor * multiplyColor;\n"
 "}";
 
 // Function to set up OpenGL state and render the triangle
 void Render(struct AppState *appState)
 {
-    const float dt = 0.1;
+    const float dt = 0.1f;
 
     struct Entity *player = &appState->player;
 
@@ -99,16 +106,18 @@ void Render(struct AppState *appState)
     //
     glUseProgram(appState->shaderProgram);
 
-    float t = sinf(glfwGetTime()*1)*0.5f + 0.5f;
-    float y = sinf(glfwGetTime()*0.7853981633974483)*0.5f + 0.5f;
-    glUniform4f(appState->multiplyColorLocation, t, y, t*y, 1.0);
+    // float t = sinf(glfwGetTime()*1)*0.5f + 0.5f;
+    // float y = sinf(glfwGetTime()*0.7853981633974483)*0.5f + 0.5f;
+    // glUniform4f(appState->multiplyColorLocation, t, y, t*y, 1.0);
+    glUniform4f(appState->multiplyColorLocation, 1.0f, 1.0f, 1.0f, 1.0f);
 
     struct {
         vec3 pos;
-        float rotateFactor;
+        float scale;
+        vec2 tile;
     } cubes[] = {
-        {{ 1.5f,  1.0, 0.0}, 1.0f},
-        {{-1.5f, -1.0, 0.0}, -2.0f},
+        {{ 1.0f,  1.0, 0.0}, 1.0f, {0.0f, 0.0f}},
+        {{-1.5f, -1.0, 0.0}, 3.0f, {4.0f, 4.0f}},
     };
 
     for (u32 i = 0; i < ARRAY_LEN(cubes); ++i)
@@ -116,15 +125,24 @@ void Render(struct AppState *appState)
         mat4 model;
         glm_mat4_identity(model);
         glm_translated(model, cubes[i].pos);
-        glm_rotate(model, glm_rad(-55.0f), (vec3){1.0f, 0.0f, 0.0f});
-        glm_rotate(model, cubes[i].rotateFactor * glfwGetTime(), (vec3){0.0f, 0.0f, 1.0f});
+        glm_mat4_scale(model, cubes[i].scale);
+        // glm_rotate(model, glm_rad(-55.0f), (vec3){1.0f, 0.0f, 0.0f});
+        // glm_rotate(model, cubes[i].rotateFactor * glfwGetTime(), (vec3){0.0f, 0.0f, 1.0f});
 
         mat4 view;
         glm_mat4_identity(view);
         glm_translate(view, (vec3){0.0f, 0.0f, -10.0f});
 
         mat4 projection;
-        glm_mat4_identity(projection);
+        // {
+        //     float left = 0.0f;
+        //     float right = 800.0f;
+        //     float bottom = 0.0f;
+        //     float top = 600.0f;
+        //     float nearZ = 0.1f;
+        //     float farZ = 1000.0f;
+        //     glm_ortho(left, right, bottom, top, nearZ, farZ, projection);
+        // }
         glm_perspective(glm_rad(55), 16.0f/9.0f, 0.1f, 100.0f, projection);
 
         // mat4s transform;
@@ -135,9 +153,10 @@ void Render(struct AppState *appState)
         glUniformMatrix4fv(appState->matModelLocation, 1, false, model[0]);
         glUniformMatrix4fv(appState->matViewLocation, 1, false, view[0]);
         glUniformMatrix4fv(appState->matProjectionLocation, 1, false, projection[0]);
+        glUniform2f(appState->tileCoordLocation, cubes[i].tile[0], cubes[i].tile[1]);
 
         glBindVertexArray(appState->spriteVao);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 }
 
@@ -215,17 +234,18 @@ int main(void)
         monitor = monitors[0];
     }
 
-    int width = glfwGetVideoMode(monitor)->width;
-    int height = glfwGetVideoMode(monitor)->height;
+    float width = (float)glfwGetVideoMode(monitor)->width;
+    float height = (float)glfwGetVideoMode(monitor)->height;
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    int minDim = width > height ? height : width;
-    float aspect = 4.0f/3.0f;
-    GLFWwindow *window = glfwCreateWindow(width, height, "Fejnando", monitor, NULL);
+    float dim = width > height ? height : width;
+    dim *= 0.8f;
+    float aspect = width/height;
+    GLFWwindow *window = glfwCreateWindow((s32)dim, (s32)(dim/aspect), "Fejnando", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -247,14 +267,17 @@ int main(void)
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
     state->multiplyColorLocation = glGetUniformLocation(state->shaderProgram, "multiplyColor");
     state->matModelLocation = glGetUniformLocation(state->shaderProgram, "model");
     state->matViewLocation = glGetUniformLocation(state->shaderProgram, "view");
     state->matProjectionLocation = glGetUniformLocation(state->shaderProgram, "projection");
+    state->tileCoordLocation = glGetUniformLocation(state->shaderProgram, "tile");
 
-    const char *crabFilePath = "../resources/crab.png";
+    const char *crabFilePath = "../resources/vehicles.png";
     FILE *imageFile = fopen(crabFilePath, "rb");
     if (!imageFile)
     {
@@ -270,7 +293,7 @@ int main(void)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     s32 crabWidth;
     s32 crabHeight;
     s32 channels;
@@ -294,52 +317,52 @@ int main(void)
     struct SpriteVertex
     {
         vec3 pos;
-        vec3 color;
+        // vec3 color;
         vec2 uv;
     };
 
     struct SpriteVertex vertices[] = {
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f, 0.0f}},
+        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f, 0.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f, 1.0f}},
+        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f, 1.0f}},
+        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f, 1.0f}},
+        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f, 0.0f}},
 
-        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,0.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        // {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,0.0f}},
 
-        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        // {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        // {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
 
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        // {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {0.0f,0.0f}},
 
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = { 1.0f,-1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        // {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = { 1.0f,-1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = {-1.0f,-1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        // {.pos = {-1.0f,-1.0f,-1.0f}, .uv = {0.0f,0.0f}},
 
-        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
-        {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
-        {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
-        {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
+        // {.pos = { 1.0f, 1.0f,-1.0f}, .uv = {1.0f,0.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = { 1.0f, 1.0f, 1.0f}, .uv = {1.0f,1.0f}},
+        // {.pos = {-1.0f, 1.0f, 1.0f}, .uv = {0.0f,1.0f}},
+        // {.pos = {-1.0f, 1.0f,-1.0f}, .uv = {0.0f,0.0f}},
     };
 
     glGenVertexArrays(1, &state->spriteVao);
@@ -359,9 +382,9 @@ int main(void)
     glVertexAttribPointer(positionAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, pos));
     glEnableVertexAttribArray(positionAttribLocation);
 
-    GLint colorAttribLocation = glGetAttribLocation(state->shaderProgram, "aColor");
-    glVertexAttribPointer(colorAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, color));
-    glEnableVertexAttribArray(colorAttribLocation);
+    // GLint colorAttribLocation = glGetAttribLocation(state->shaderProgram, "aColor");
+    // glVertexAttribPointer(colorAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, color));
+    // glEnableVertexAttribArray(colorAttribLocation);
 
     GLint uvAttribLocation = glGetAttribLocation(state->shaderProgram, "aUV");
     glVertexAttribPointer(uvAttribLocation, 2, GL_FLOAT, GL_FALSE, sizeof(*vertices), (void *)OFFSET_OF(struct SpriteVertex, uv));

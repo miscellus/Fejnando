@@ -15,6 +15,8 @@
 #include "allocator.h"
 #include "shaders.h"
 
+#define LENGTH_UNIT_SCALE 32
+
 struct Entity
 {
     u32 id;
@@ -22,7 +24,7 @@ struct Entity
     vec2 velocity;
     vec2 acceleration;
 
-    vec2 dim;
+    vec2 dimension;
 };
 
 struct AppState
@@ -56,6 +58,7 @@ static vec3 quadVertices[] = {
     { -1.0f, -1.0f,  0.0f },
 };
 
+#if 0
 // Vertex Shader
 static const char *vertexShaderSource =
 "#version 330 core\n"
@@ -84,6 +87,32 @@ static const char *fragmentShaderSource =
 "void main() {\n"
 "    FragColor = texture(textureMain, (vUV + tile) * 0.125) * vColor * multiplyColor;\n"
 "}";
+
+#endif
+
+static s32 GetFileSize(const char *path)
+{
+    FILE *file = fopen(path, "rb");
+    if (!file)
+    {
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+    fclose(file);
+
+    return (s32)length;
+}
+
+static u32 ReadBytesFromFile(const char *filePath, usize numBytes, u8 *buffer)
+{
+    FILE *file = fopen(filePath, "rb");
+
+    u32 numRead = fread(buffer, numBytes, 1, file);
+    fclose(file);
+    return numRead;
+}
 
 // Function to set up OpenGL state and render the triangle
 void Render(struct AppState *appState)
@@ -134,16 +163,16 @@ void Render(struct AppState *appState)
         glm_translate(view, (vec3){0.0f, 0.0f, -10.0f});
 
         mat4 projection;
-        // {
-        //     float left = 0.0f;
-        //     float right = 800.0f;
-        //     float bottom = 0.0f;
-        //     float top = 600.0f;
-        //     float nearZ = 0.1f;
-        //     float farZ = 1000.0f;
-        //     glm_ortho(left, right, bottom, top, nearZ, farZ, projection);
-        // }
-        glm_perspective(glm_rad(55), 16.0f/9.0f, 0.1f, 100.0f, projection);
+        {
+            float left = 0.0f;
+            float right = 8.0f;
+            float bottom = 0.0f;
+            float top = 6.0f;
+            float nearZ = 0.1f;
+            float farZ = 100.0f;
+            glm_ortho(left, right, bottom, top, nearZ, farZ, projection);
+        }
+        // glm_perspective(glm_rad(55), 16.0f/9.0f, 0.1f, 100.0f, projection);
 
         // mat4s transform;
         // glm_mat4_identity(transform.raw);
@@ -270,7 +299,34 @@ int main(void)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
+    //
+    // Load shaders
+    //
+    {
+        const char *vertexShaderSourcePath = "../resources/sprite_sheet.shader.vert";
+        const char *fragmentShaderSourcePath = "../resources/sprite_sheet.shader.frag";
+
+        s32 vertexShaderSourceSize = GetFileSize(vertexShaderSourcePath);
+        if (vertexShaderSourceSize < 0) return 1;
+
+        s32 fragmentShaderSourceSize = GetFileSize(fragmentShaderSourcePath);
+        if (fragmentShaderSourceSize < 0) return 1;
+
+        u8 vertexShaderSource[vertexShaderSourceSize + 1];
+        u8 fragmentShaderSource[vertexShaderSourceSize + 1];
+
+        s32 numRead = ReadBytesFromFile(vertexShaderSourcePath, vertexShaderSourceSize, vertexShaderSource);
+        if (numRead < 0) return 1;
+
+        numRead = ReadBytesFromFile(fragmentShaderSourcePath, fragmentShaderSourceSize, fragmentShaderSource);
+        if (numRead < 0) return 1;
+
+        vertexShaderSource[vertexShaderSourceSize] = 0;
+        fragmentShaderSource[fragmentShaderSourceSize] = 0;
+
+        state->shaderProgram = CompileShaders(vertexShaderSource, fragmentShaderSource);
+    }
+
     state->multiplyColorLocation = glGetUniformLocation(state->shaderProgram, "multiplyColor");
     state->matModelLocation = glGetUniformLocation(state->shaderProgram, "model");
     state->matViewLocation = glGetUniformLocation(state->shaderProgram, "view");

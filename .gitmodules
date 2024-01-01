@@ -1,6 +1,6 @@
-[submodule "deps/glfw"]
-	path = deps/glfw
+[submodule "external/glfw"]
+	path = external/glfw
 	url = https://github.com/glfw/glfw.git
-[submodule "deps/cglm"]
-	path = deps/cglm
+[submodule "external/cglm"]
+	path = external/cglm
 	url = https://github.com/recp/cglm.git

@@ -1,11 +1,11 @@
 #include "shaders.h"
 #include <glad/gl.h>
 
-u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShaderSource)
+u32 CompileShaders(u8 *vertexShaderSource, u8 *fragmentShaderSource)
 {
     // Create and compile the vertex shader
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glShaderSource(vertexShader, 1, (const char **)&vertexShaderSource, NULL);
     glCompileShader(vertexShader);
 
     // Check for shader compilation errors
@@ -20,7 +20,7 @@ u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShaderSou
 
     // Create and compile the fragment shader
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glShaderSource(fragmentShader, 1, (const char **)&fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
 
     // Check for shader compilation errors

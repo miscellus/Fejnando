@@ -4,14 +4,14 @@ project(Fejnando LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_subdirectory(deps/glfw)
-add_subdirectory(deps/cglm)
+add_subdirectory(external/glfw)
+add_subdirectory(external/cglm)
 
 add_executable(${PROJECT_NAME}
     src/main_glfw.c
     src/shaders.c
     src/allocator.c
-    deps/glad/gl.c
+    external/glad/gl.c
 )
 
 add_library(gamelib SHARED
@@ -19,8 +19,8 @@ add_library(gamelib SHARED
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
-    deps/
-    deps/glad
+    external/
+    external/glad
     ${GLFW_INCLUDE_DIRS}
 )
 

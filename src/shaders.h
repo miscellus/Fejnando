@@ -3,6 +3,6 @@
 
 #include "common.h"
 
-u32 CompileShaders(const char *vertexShaderSource, const char *fragmentShaderSource);
+u32 CompileShaders(u8 *vertexShaderSource, u8 *fragmentShaderSource);
 
 #endif // SHADERS_H
